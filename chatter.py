@@ -39,6 +39,20 @@ def get_response(content):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
 
+async def imagine(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print('ctxt:',dir(context))
+    print('update:',update)
+    try:
+        response = openai.Image.create(
+            prompt=update.message.text,
+        n=1,
+        size="1024x1024"
+        )
+        image_url = response['data'][0]['url']
+        await context.bot.send_photo(chat_id=update.effective_chat.id, photo=image_url)
+    except Exception as e:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, " + str(e))
+
 async def document_processing(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print('ctxt:',dir(context))
     print('update:',update)
@@ -91,9 +105,11 @@ async def catch_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == '__main__':
     application = ApplicationBuilder().token(settings.bot_key).build()
     start_handler = CommandHandler('start', start)
+    imagine_handler = CommandHandler('imagine', imagine)
     echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), catch_all)
     voice_handler = MessageHandler(filters.VOICE, voice_processing)
     doc_handler = MessageHandler(filters.Document.ALL, document_processing)
+    application.add_handler(imagine_handler)
     application.add_handler(start_handler)
     application.add_handler(echo_handler)
     application.add_handler(voice_handler)
