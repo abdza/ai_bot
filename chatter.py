@@ -7,6 +7,7 @@ import settings
 import openai
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
+from pydub import AudioSegment
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -37,6 +38,24 @@ def get_response(content):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
 
+async def voice_processing(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print('ctxt:',dir(context))
+    print('update:',update)
+    try:
+        file_info = await context.bot.get_file(update.message.voice.file_id)
+        downloaded_file = await file_info.download_as_bytearray()
+        filename = 'voice_' + str(update.message.from_user.id)
+        with open(os.path.join(script_dir,'voices',filename + '.ogg'), 'wb') as new_file:
+            new_file.write(downloaded_file)
+        ogg_audio = AudioSegment.from_file(os.path.join(script_dir,'voices',filename + '.ogg'), format="ogg")
+        ogg_audio.export(os.path.join(script_dir,'voices',filename + '.mp3'), format="mp3")
+        transcript = openai.Audio.transcribe("whisper-1", open(os.path.join(script_dir,'voices',filename + '.mp3'),'rb'))
+        response = get_response(transcript.text)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
+    except Exception as e:
+        print("error:",e)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, " + str(e))
+
 async def catch_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print('ctxt:',dir(context))
     print('update:',update)
@@ -55,6 +74,8 @@ if __name__ == '__main__':
     application = ApplicationBuilder().token(settings.bot_key).build()
     start_handler = CommandHandler('start', start)
     echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), catch_all)
+    voice_handler = MessageHandler(filters.VOICE, voice_processing)
     application.add_handler(start_handler)
     application.add_handler(echo_handler)
+    application.add_handler(voice_handler)
     application.run_polling()
