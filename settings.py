@@ -1,0 +1,2 @@
+openai_key='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'
+bot_key='6139828455:AAENlRvYwThvnpvNRMATScsVLnXMasZQyng'
